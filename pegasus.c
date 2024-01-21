@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <termios.h>
 
+/*** defines ***/
+#define CTRL_KEY(k) ((k) & 0x1f)
+
+
 struct termios orig_termios;
 
 void die(const char *s) {
@@ -46,8 +50,6 @@ void enableRawMode() {
   raw.c_cc[VMIN] = 0;
   //max time to wait before read() returns, if timedout read() will return 0 instead of num bytes from stdin
   raw.c_cc[VTIME] = 1;
-
-
   
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)) {
     die("tcsetattr");
@@ -61,15 +63,15 @@ int main() {
   while(1) {
 
   char c = '\0';
+
   if (read(STDIN_FILENO, &c, 1) == -1 && errno !=EAGAIN) die("read"); 
+
   if (iscntrl(c)) {
     printf("%d\n\r", c);
   } else {
     printf("%d ('%c')\n\r", c, c);
   }
-
-
-    if (c == 'q') break;
+    if (c == CTRL_KEY('q')) break;
   }
   return 0;
 }
