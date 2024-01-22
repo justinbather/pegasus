@@ -17,6 +17,10 @@ struct termios orig_termios;
 /*** terminal ***/
 
 void die(const char *s) {
+  // Clear terminal and move cursor to top left upon exit
+  write(STDOUT_FILENO, "\1xb[2J", 4);
+  write(STDOUT_FILENO, "\1xb[H", 3);
+
   perror(s);
   exit(1);
 }
@@ -77,13 +81,25 @@ void editorProcessKeypress() {
   char c = editorReadKey();
 
   switch(c) {
+    //Quit key
     case CTRL_KEY('q'):
+      write(STDOUT_FILENO, "\1xb[2J", 4);
+      write(STDOUT_FILENO, "\1xb[H", 3);
       exit(0);
       break;
   }
 }
 
 /*** output ***/
+void editorDrawRows() {
+  int y;
+
+  // Print tildes on each line
+  for (y = 0; y < 24; y++) {
+    write(STDOUT_FILENO, "~\r\n", 3);
+  }
+}
+
 
 void editorRefreshScreen() {
   //From unistd.h
@@ -98,6 +114,16 @@ void editorRefreshScreen() {
   //using VT100 escape sequences
   //NOTE: Could use ncurses library to support max amount of terminals. It uses teminfo db to choose what escape sequences to use for a users teminal
   write(STDOUT_FILENO, "\x1b[2J", 4);
+
+  //moves cursor to the top left
+  //H command is for cursor positioning and takes 2 args -> row num, column num separated by ;
+  //ex \x1b[12;40H
+  //defaults to 1;1
+  write(STDOUT_FILENO, "\x1b[H", 3);
+
+  editorDrawRows();
+  
+  write(STDOUT_FILENO, "\x1b[H", 3);
 }
 
 /*** init ***/
