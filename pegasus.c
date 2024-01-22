@@ -10,7 +10,11 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 
+/*** data ***/
 struct termios orig_termios;
+
+
+/*** terminal ***/
 
 void die(const char *s) {
   perror(s);
@@ -54,24 +58,58 @@ void enableRawMode() {
   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw)) {
     die("tcsetattr");
   }
-
 }
+
+char editorReadKey() {
+  int nread;
+  char c;
+
+  while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+    if (nread == -1 && errno != EAGAIN) die("read");
+  }
+  
+  return c;
+}
+
+
+/*** input ***/
+void editorProcessKeypress() {
+  char c = editorReadKey();
+
+  switch(c) {
+    case CTRL_KEY('q'):
+      exit(0);
+      break;
+  }
+}
+
+/*** output ***/
+
+void editorRefreshScreen() {
+  //From unistd.h
+  //Writes 4 bytes to the terminal
+  //byte 1: \x1b (escape character / 27 in decimal)
+  //escape chars always followed by `[`
+  //bytes 2-4: [2J
+  //J command (Erase in display) takes args before itself
+  //in this case we use `2` which tells it to clear entire screen
+  //<esc>[1J clears screen up to cursor
+  //<esc>[0J clears screen after cursor (default argument to J command)
+  //using VT100 escape sequences
+  //NOTE: Could use ncurses library to support max amount of terminals. It uses teminfo db to choose what escape sequences to use for a users teminal
+  write(STDOUT_FILENO, "\x1b[2J", 4);
+}
+
+/*** init ***/
 
 int main() {
   enableRawMode();
-  //read 1 byte from stdin until no more bytes or q is pressed
+
   while(1) {
-
-  char c = '\0';
-
-  if (read(STDIN_FILENO, &c, 1) == -1 && errno !=EAGAIN) die("read"); 
-
-  if (iscntrl(c)) {
-    printf("%d\n\r", c);
-  } else {
-    printf("%d ('%c')\n\r", c, c);
+    // handle key press, exits if ctrl-q is pressed
+    editorProcessKeypress();
+    editorRefreshScreen();
   }
-    if (c == CTRL_KEY('q')) break;
-  }
+
   return 0;
 }
