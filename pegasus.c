@@ -5,13 +5,20 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <termios.h>
+#include <sys/ioctl.h>
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
 
 
 /*** data ***/
-struct termios orig_termios;
+struct editorConfig {
+  int screenrows;
+  int screencols;
+  struct termios orig_termios;
+};
+
+struct editorConfig EConfig;
 
 
 /*** terminal ***/
@@ -26,7 +33,7 @@ void die(const char *s) {
 }
 
 void disableRawMode() {
-  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
+  if(tcsetattr(STDIN_FILENO, TCSAFLUSH, &EConfig.orig_termios) == -1) {
     die("tcsetattr");
   }
 }
@@ -35,13 +42,13 @@ void disableRawMode() {
 void enableRawMode() {
 
   // Gets attributes of users termios to make a copy, allowing us to revert the users termios from rawMode to normal mode upon exit
-  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
+  if (tcgetattr(STDIN_FILENO, &EConfig.orig_termios) == -1) {
     die("tcgetattr");
   }
   atexit(disableRawMode);
 
   // Make copy of termios
-  struct termios raw = orig_termios;
+  struct termios raw = EConfig.orig_termios;
 
   // Bitwise operations to manually turn on raw mode, allowing program to take in things like `CTRL-c` as bytes instead of commands
   // termios input flags
@@ -75,6 +82,18 @@ char editorReadKey() {
   return c;
 }
 
+// uses sys/ioctl.h TIOCGWINSZ to get window size
+int getWindowSize (int *rows, int *cols) {
+  struct winsize ws;
+
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 1 || ws.ws_col == 0) {
+    return -1;
+  } else {
+    *cols = ws.ws_col;
+    *rows = ws.ws_row;
+    return 0;
+  }
+}
 
 /*** input ***/
 void editorProcessKeypress() {
@@ -95,7 +114,7 @@ void editorDrawRows() {
   int y;
 
   // Print tildes on each line
-  for (y = 0; y < 24; y++) {
+  for (y = 0; y < EConfig.screenrows; y++) {
     write(STDOUT_FILENO, "~\r\n", 3);
   }
 }
@@ -128,8 +147,15 @@ void editorRefreshScreen() {
 
 /*** init ***/
 
+void initEditor() {
+  if (getWindowSize(&EConfig.screenrows, &EConfig.screencols) == -1) {
+    die("getWindowSize");
+  }
+}
+
 int main() {
   enableRawMode();
+  initEditor();
 
   while(1) {
     // handle key press, exits if ctrl-q is pressed
