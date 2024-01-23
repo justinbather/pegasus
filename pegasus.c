@@ -82,12 +82,37 @@ char editorReadKey() {
   return c;
 }
 
+
+int getCursorPosition(int *rows, int *cols) {
+  if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) return -1;
+
+  printf("\r\n");
+  char c;
+
+  while (read(STDIN_FILENO, &c, 1) == 1) {
+    if (iscntrl(c)) {
+      printf("%d\r\n", c);
+
+    } else {
+      printf("%d ('%c')\r\n", c, c);
+    }
+  }
+
+  editorReadKey();
+
+  return -1;
+}
+
 // uses sys/ioctl.h TIOCGWINSZ to get window size
 int getWindowSize (int *rows, int *cols) {
   struct winsize ws;
 
-  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 1 || ws.ws_col == 0) {
-    return -1;
+  if ( 1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 1 || ws.ws_col == 0) {
+
+    //fallback if system cant use ioctl to query window size
+    //moves cursor down 999 rows, over 999 columns
+    if (write(STDOUT_FILENO, "\x1b[999C\x1b[999b", 12) != 12) return -1;
+    return getCursorPosition(rows, cols);
   } else {
     *cols = ws.ws_col;
     *rows = ws.ws_row;
