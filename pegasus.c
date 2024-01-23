@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -20,11 +21,19 @@ enum editorKey {
 };
 
 /*** data ***/
+// stores chars from row in file
+typedef struct erow {
+  int size;
+  char *chars;
+} erow;
+
 struct editorConfig {
   // cursor x and y position
   int cx, cy;
   int screenrows;
   int screencols;
+  int numrows;
+  erow row;
   struct termios orig_termios;
 };
 
@@ -150,6 +159,19 @@ int getWindowSize(int *rows, int *cols) {
   }
 }
 
+/*** file i/o ***/
+
+void editorOpen() {
+  char *line = "Hello World";
+  ssize_t linelen = 13;
+
+  EConfig.row.size = linelen;
+  EConfig.row.chars = malloc(linelen + 1);
+  memcpy(EConfig.row.chars, line, linelen);
+  EConfig.row.chars[linelen] = '\0';
+  EConfig.numrows = 1;
+}
+
 /*** append buffer **/
 
 struct abuf {
@@ -231,26 +253,35 @@ void editorDrawRows(struct abuf *ab) {
   for (y = 0; y < EConfig.screenrows; y++) {
 
     // Welcome message
-    if (y == EConfig.screenrows / 3) {
-      char welcome[80];
-      int welcomelen = snprintf(
-          welcome, sizeof(welcome),
-          "Pegasus Editor -- version %s - by Justin Bather\n", PEGASUS_VERSION);
+    if (y > EConfig.numrows) {
 
-      if (welcomelen > EConfig.screencols)
-        welcomelen = EConfig.screencols;
-      int padding = (EConfig.screencols - welcomelen) / 2;
-      if (padding) {
+      if (y == EConfig.screenrows / 3) {
+        char welcome[80];
+        int welcomelen =
+            snprintf(welcome, sizeof(welcome),
+                     "Pegasus Editor -- version %s - by Justin Bather\n",
+                     PEGASUS_VERSION);
+
+        if (welcomelen > EConfig.screencols)
+          welcomelen = EConfig.screencols;
+        int padding = (EConfig.screencols - welcomelen) / 2;
+        if (padding) {
+          abAppend(ab, "~", 1);
+          padding--;
+        }
+
+        while (padding--)
+          abAppend(ab, " ", 1);
+        abAppend(ab, welcome, welcomelen);
+
+      } else {
         abAppend(ab, "~", 1);
-        padding--;
       }
-
-      while (padding--)
-        abAppend(ab, " ", 1);
-      abAppend(ab, welcome, welcomelen);
-
     } else {
-      abAppend(ab, "~", 1);
+      int len = EConfig.row.size;
+      if (len > EConfig.screencols)
+        len = EConfig.screencols;
+      abAppend(ab, EConfig.row.chars, len);
     }
 
     // clear row as we write to it
@@ -307,6 +338,7 @@ void editorRefreshScreen() {
 void initEditor() {
   EConfig.cx = 0;
   EConfig.cy = 0;
+  EConfig.numrows = 0;
   if (getWindowSize(&EConfig.screenrows, &EConfig.screencols) == -1) {
     die("getWindowSize");
   }
@@ -315,6 +347,7 @@ void initEditor() {
 int main() {
   enableRawMode();
   initEditor();
+  editorOpen();
 
   while (1) {
     // handle key press, exits if ctrl-q is pressed
