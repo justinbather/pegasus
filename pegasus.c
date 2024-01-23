@@ -267,7 +267,7 @@ void editorDrawRows(struct abuf *ab) {
   for (y = 0; y < EConfig.screenrows; y++) {
 
     // Welcome message
-    if (y > EConfig.numrows) {
+    if (y >= EConfig.numrows) {
 
       if (EConfig.numrows == 0 && y == EConfig.screenrows / 3) {
         char welcome[80];
