@@ -10,6 +10,7 @@
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
+#define PEGASUS_VERSION "0.0.1"
 
 
 /*** data ***/
@@ -158,7 +159,21 @@ void editorDrawRows(struct abuf *ab) {
 
   // Print tildes on each line
   for (y = 0; y < EConfig.screenrows; y++) {
-    abAppend(ab, "~", 1);
+
+    //Welcome message
+    if (y == EConfig.screenrows / 3) {
+      char welcome[80];
+      int welcomelen = snprintf(welcome, sizeof(welcome), "Pegasus Editor -- version %s - by Justin Bather\n", PEGASUS_VERSION);
+      
+      if (welcomelen > EConfig.screencols) welcomelen = EConfig.screencols;
+      abAppend(ab, welcome, welcomelen);
+
+    } else {
+      abAppend(ab, "~", 1);
+    }
+
+    //clear row as we write to it
+    abAppend(ab, "\x1b[K", 3);
 
     if (y < EConfig.screenrows - 1) {
       abAppend(ab, "\r\n", 2);
@@ -182,7 +197,8 @@ void editorRefreshScreen() {
   //using VT100 escape sequences
   //NOTE: Could use ncurses library to support max amount of terminals. It uses teminfo db to choose what escape sequences to use for a users teminal
 
-  abAppend(&ab, "\x1b[2J", 4);
+  //hide cursor before paint
+  abAppend(&ab, "\x1b[?25l", 6);
 
   //moves cursor to the top left
   //H command is for cursor positioning and takes 2 args -> row num, column num separated by ;
@@ -194,6 +210,9 @@ void editorRefreshScreen() {
   editorDrawRows(&ab);
 
   abAppend(&ab, "\x1b[H", 3);
+
+  //Show cursor after paint
+  abAppend(&ab, "\x1b[?25h", 6);
   
   write(STDOUT_FILENO, ab.b, ab.len);
   abFree(&ab);
