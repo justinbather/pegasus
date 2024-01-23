@@ -97,7 +97,6 @@ int getCursorPosition(int *rows, int *cols) {
   return 0;
 }
 
-
 int getWindowSize(int *rows, int *cols) {
   struct winsize ws;
   if (1 || ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
@@ -117,12 +116,13 @@ void editorProcessKeypress() {
   switch(c) {
     //Quit key
     case CTRL_KEY('q'):
-      write(STDOUT_FILENO, "\1xb[2J", 4);
-      write(STDOUT_FILENO, "\1xb[H", 3);
+      write(STDOUT_FILENO, "\x1b[2J", 4);
+      write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
       break;
   }
 }
+
 
 /*** output ***/
 void editorDrawRows() {
@@ -130,7 +130,11 @@ void editorDrawRows() {
 
   // Print tildes on each line
   for (y = 0; y < EConfig.screenrows; y++) {
-    write(STDOUT_FILENO, "~\r\n", 3);
+    write(STDOUT_FILENO, "~", 1);
+
+    if (y < EConfig.screenrows - 1) {
+      write(STDOUT_FILENO, "\r\n", 2);
+    }
   }
 }
 
