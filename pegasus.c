@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <termios.h>
@@ -109,6 +110,33 @@ int getWindowSize(int *rows, int *cols) {
   }
 }
 
+/*** append buffer **/
+
+struct abuf {
+  char *b;
+  int len;
+};
+
+#define ABUF_INIT {NULL, 0}
+
+void abAppend(struct abuf *ab, const char *s, int len) {
+  // request a larger block of memory to add a string of size n to our exisiting struct in memory so we can copy the given string to the end of our current buffer data
+  // if realloc cant add to our exisiting block of memory it will free our existing block and find a new one of size n + ab->len
+  char *new = realloc(ab->b, ab->len + len);
+
+  if (new == NULL) return;
+
+  //copys new string to end of our buffer
+  memcpy(&new[ab->len], s, len);
+  ab->b = new;
+  ab->len += len;
+
+}
+
+void abFree(struct abuf *ab) {
+  free(ab->b);
+}
+
 /*** input ***/
 void editorProcessKeypress() {
   char c = editorReadKey();
@@ -125,21 +153,23 @@ void editorProcessKeypress() {
 
 
 /*** output ***/
-void editorDrawRows() {
+void editorDrawRows(struct abuf *ab) {
   int y;
 
   // Print tildes on each line
   for (y = 0; y < EConfig.screenrows; y++) {
-    write(STDOUT_FILENO, "~", 1);
+    abAppend(ab, "~", 1);
 
     if (y < EConfig.screenrows - 1) {
-      write(STDOUT_FILENO, "\r\n", 2);
+      abAppend(ab, "\r\n", 2);
     }
   }
 }
 
 
+//uses appendBuffer to build the stdout and writing to terminal once instead of calling write() many times, causing flickering
 void editorRefreshScreen() {
+  struct abuf ab = ABUF_INIT;
   //From unistd.h
   //Writes 4 bytes to the terminal
   //byte 1: \x1b (escape character / 27 in decimal)
@@ -151,17 +181,22 @@ void editorRefreshScreen() {
   //<esc>[0J clears screen after cursor (default argument to J command)
   //using VT100 escape sequences
   //NOTE: Could use ncurses library to support max amount of terminals. It uses teminfo db to choose what escape sequences to use for a users teminal
-  write(STDOUT_FILENO, "\x1b[2J", 4);
+
+  abAppend(&ab, "\x1b[2J", 4);
 
   //moves cursor to the top left
   //H command is for cursor positioning and takes 2 args -> row num, column num separated by ;
   //ex \x1b[12;40H
   //defaults to 1;1
-  write(STDOUT_FILENO, "\x1b[H", 3);
 
-  editorDrawRows();
+  abAppend(&ab, "\x1b[H", 3);
+
+  editorDrawRows(&ab);
+
+  abAppend(&ab, "\x1b[H", 3);
   
-  write(STDOUT_FILENO, "\x1b[H", 3);
+  write(STDOUT_FILENO, ab.b, ab.len);
+  abFree(&ab);
 }
 
 /*** init ***/
