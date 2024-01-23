@@ -164,8 +164,15 @@ void editorDrawRows(struct abuf *ab) {
     if (y == EConfig.screenrows / 3) {
       char welcome[80];
       int welcomelen = snprintf(welcome, sizeof(welcome), "Pegasus Editor -- version %s - by Justin Bather\n", PEGASUS_VERSION);
-      
+
       if (welcomelen > EConfig.screencols) welcomelen = EConfig.screencols;
+      int padding = (EConfig.screencols - welcomelen) / 2;
+      if (padding) {
+        abAppend(ab, "~", 1);
+        padding--;
+      }
+
+      while(padding--) abAppend(ab, " ", 1);
       abAppend(ab, welcome, welcomelen);
 
     } else {
