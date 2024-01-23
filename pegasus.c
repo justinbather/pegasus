@@ -183,16 +183,24 @@ void editorMoveCursor(char key) {
   switch (key) {
     // NOTE: Maybe change the naming of the enum constants later
   case ARROW_UP:
-    EConfig.cy--;
+    if (EConfig.cy != 0) {
+      EConfig.cy--;
+    }
     break;
   case ARROW_DOWN:
-    EConfig.cy++;
+    if (EConfig.cy != EConfig.screenrows - 1) {
+      EConfig.cy++;
+    }
     break;
   case ARROW_LEFT:
-    EConfig.cx--;
+    if (EConfig.cx != 0) {
+      EConfig.cx--;
+    }
     break;
   case ARROW_RIGHT:
-    EConfig.cx++;
+    if (EConfig.cx != EConfig.screencols - 1) {
+      EConfig.cx++;
+    }
     break;
   }
 }
