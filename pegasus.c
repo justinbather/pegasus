@@ -12,6 +12,13 @@
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define PEGASUS_VERSION "0.0.1"
 
+enum editorKey {
+  ARROW_LEFT = 'h',
+  ARROW_RIGHT = 'l',
+  ARROW_UP = 'k',
+  ARROW_DOWN = 'j'
+};
+
 /*** data ***/
 struct editorConfig {
   // cursor x and y position
@@ -83,7 +90,31 @@ char editorReadKey() {
       die("read");
   }
 
-  return c;
+  if (c == '\x1b') {
+    char seq[3];
+
+    if (read(STDIN_FILENO, &seq[0], 1) != 1)
+      return '\x1b';
+    if (read(STDIN_FILENO, &seq[1], 1) != 1)
+      return '\x1b';
+
+    // Alias Arrow keys to motion keys
+    if (seq[0] == '[') {
+      switch (seq[1]) {
+      case 'A':
+        return ARROW_UP;
+      case 'B':
+        return ARROW_DOWN;
+      case 'C':
+        return ARROW_RIGHT;
+      case 'D':
+        return ARROW_LEFT;
+      }
+    }
+    return '\x1b';
+  } else {
+    return c;
+  }
 }
 
 int getCursorPosition(int *rows, int *cols) {
@@ -150,16 +181,17 @@ void abFree(struct abuf *ab) { free(ab->b); }
 /*** input ***/
 void editorMoveCursor(char key) {
   switch (key) {
-  case 'k':
+    // NOTE: Maybe change the naming of the enum constants later
+  case ARROW_UP:
     EConfig.cy--;
     break;
-  case 'j':
+  case ARROW_DOWN:
     EConfig.cy++;
     break;
-  case 'h':
+  case ARROW_LEFT:
     EConfig.cx--;
     break;
-  case 'l':
+  case ARROW_RIGHT:
     EConfig.cx++;
     break;
   }
@@ -174,10 +206,10 @@ void editorProcessKeypress() {
     write(STDOUT_FILENO, "\x1b[H", 3);
     exit(0);
     break;
-  case 'h':
-  case 'j':
-  case 'k':
-  case 'l':
+  case ARROW_LEFT:
+  case ARROW_RIGHT:
+  case ARROW_UP:
+  case ARROW_DOWN:
     editorMoveCursor(c);
     break;
   }
