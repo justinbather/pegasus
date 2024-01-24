@@ -30,6 +30,7 @@ typedef struct erow {
 struct editorConfig {
   // cursor x and y position
   int cx, cy;
+  int rowoffset;
   int screenrows;
   int screencols;
   int numrows;
@@ -232,7 +233,7 @@ void editorMoveCursor(char key) {
     }
     break;
   case ARROW_DOWN:
-    if (EConfig.cy != EConfig.screenrows - 1) {
+    if (EConfig.cy < EConfig.numrows) {
       EConfig.cy++;
     }
     break;
@@ -268,14 +269,25 @@ void editorProcessKeypress() {
 }
 
 /*** output ***/
+
+void editorScroll() {
+  if (EConfig.cy < EConfig.rowoffset) {
+    EConfig.rowoffset = EConfig.cy;
+  }
+
+  if (EConfig.cy >= EConfig.rowoffset + EConfig.screenrows) {
+    EConfig.rowoffset = EConfig.cy - EConfig.screenrows + 1;
+  }
+}
+
 void editorDrawRows(struct abuf *ab) {
   int y;
 
   // Print tildes on each line
   for (y = 0; y < EConfig.screenrows; y++) {
+    int filerow = y + EConfig.rowoffset;
 
-    // Welcome message
-    if (y >= EConfig.numrows) {
+    if (filerow >= EConfig.numrows) {
 
       if (EConfig.numrows == 0 && y == EConfig.screenrows / 3) {
         char welcome[80];
@@ -300,10 +312,10 @@ void editorDrawRows(struct abuf *ab) {
         abAppend(ab, "~", 1);
       }
     } else {
-      int len = EConfig.row[y].size;
+      int len = EConfig.row[filerow].size;
       if (len > EConfig.screencols)
         len = EConfig.screencols;
-      abAppend(ab, EConfig.row[y].chars, len);
+      abAppend(ab, EConfig.row[filerow].chars, len);
     }
 
     // clear row as we write to it
@@ -318,6 +330,7 @@ void editorDrawRows(struct abuf *ab) {
 // uses appendBuffer to build the stdout and writing to terminal once instead of
 // calling write() many times, causing flickering
 void editorRefreshScreen() {
+  editorScroll();
   struct abuf ab = ABUF_INIT;
   // From unistd.h
   // Writes 4 bytes to the terminal
@@ -345,7 +358,8 @@ void editorRefreshScreen() {
 
   // move cursor to global cursor position state
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", EConfig.cy + 1, EConfig.cx + 1);
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH",
+           (EConfig.cy - EConfig.rowoffset) + 1, EConfig.cx + 1);
   abAppend(&ab, buf, strlen(buf));
 
   // Show cursor after paint
@@ -362,6 +376,7 @@ void initEditor() {
   EConfig.cy = 0;
   EConfig.numrows = 0;
   EConfig.row = NULL;
+  EConfig.rowoffset = 0;
   if (getWindowSize(&EConfig.screenrows, &EConfig.screencols) == -1) {
     die("getWindowSize");
   }
