@@ -31,6 +31,7 @@ struct editorConfig {
   // cursor x and y position
   int cx, cy;
   int rowoffset;
+  int coloffset;
   int screenrows;
   int screencols;
   int numrows;
@@ -278,6 +279,13 @@ void editorScroll() {
   if (EConfig.cy >= EConfig.rowoffset + EConfig.screenrows) {
     EConfig.rowoffset = EConfig.cy - EConfig.screenrows + 1;
   }
+
+  if (EConfig.cx < EConfig.coloffset) {
+    EConfig.coloffset = EConfig.cx;
+  }
+  if (EConfig.cx >= EConfig.coloffset) {
+    EConfig.coloffset = EConfig.cx - EConfig.screencols + 1;
+  }
 }
 
 void editorDrawRows(struct abuf *ab) {
@@ -312,10 +320,12 @@ void editorDrawRows(struct abuf *ab) {
         abAppend(ab, "~", 1);
       }
     } else {
-      int len = EConfig.row[filerow].size;
+      int len = EConfig.row[filerow].size - EConfig.coloffset;
+      if (len < 0)
+        len = 0;
       if (len > EConfig.screencols)
         len = EConfig.screencols;
-      abAppend(ab, EConfig.row[filerow].chars, len);
+      abAppend(ab, &EConfig.row[filerow].chars[EConfig.coloffset], len);
     }
 
     // clear row as we write to it
@@ -377,6 +387,7 @@ void initEditor() {
   EConfig.numrows = 0;
   EConfig.row = NULL;
   EConfig.rowoffset = 0;
+  EConfig.coloffset = 0;
   if (getWindowSize(&EConfig.screenrows, &EConfig.screencols) == -1) {
     die("getWindowSize");
   }
