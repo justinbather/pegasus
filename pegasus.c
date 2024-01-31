@@ -250,6 +250,9 @@ void editorMoveCursor(char key) {
   case ARROW_RIGHT:
     if (row && EConfig.cx < row->size) {
       EConfig.cx++;
+    } else if (row && EConfig.cx == row->size) {
+      EConfig.cy++;
+      EConfig.cx = 0;
     }
     break;
   }
