@@ -242,10 +242,13 @@ void editorMoveCursor(char key) {
   case ARROW_LEFT:
     if (EConfig.cx != 0) {
       EConfig.cx--;
+    } else if (EConfig.cy > 0) {
+      EConfig.cy--;
+      EConfig.cx = EConfig.row[EConfig.cy].size;
     }
     break;
   case ARROW_RIGHT:
-    if (EConfig.cx != EConfig.screencols - 1) {
+    if (row && EConfig.cx < row->size) {
       EConfig.cx++;
     }
     break;
