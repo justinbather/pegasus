@@ -12,6 +12,7 @@
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define PEGASUS_VERSION "0.0.1"
+#define PEGASUS_TAB_SPACES 8
 #define _DEFAULT_SOURCE
 #define _BSD_SOURCE
 #define _GNU_SOURCE
@@ -34,8 +35,11 @@ typedef struct erow {
 } erow;
 
 struct editorConfig {
-  // cursor x and y position
+  // cursor x and y position indexes into rows and columns
   int cx, cy;
+
+  // rx indexes into render
+  int rx;
   int rowoffset;
   int coloffset;
   int screenrows;
@@ -169,16 +173,44 @@ int getWindowSize(int *rows, int *cols) {
 
 /*** row operations ***/
 
+int editorRowCxtoRx(erow *row, int cx) {
+  int rx = 0;
+
+  for (int j = 0; j < cx; j++) {
+    if (row->chars[j] == '\t') {
+      rx += (PEGASUS_TAB_SPACES - 1) - (rx % PEGASUS_TAB_SPACES);
+    }
+    rx++;
+  }
+  return rx;
+}
+
 void editorUpdateRow(erow *row) {
+  int tabs = 0;
+  int j;
+
+  // count num tabs in line/row
+  for (j = 0; j < row->size; j++) {
+
+    if (row->chars[j] == '\t')
+      tabs++;
+  }
 
   free(row->render);
-  row->render = malloc(row->size + 1);
+  // account for spaces tabs will take up
+  row->render = malloc(row->size + tabs * (PEGASUS_TAB_SPACES - 1) + 1);
 
-  int j;
   int idx = 0;
 
   for (j = 0; j < row->size; j++) {
-    row->render[idx++] = row->chars[j];
+    if (row->chars[j] == '\t') {
+      row->render[idx++] = ' ';
+      // add 8 spaces in place of tab character
+      while (idx % PEGASUS_TAB_SPACES != 0)
+        row->render[idx++] = ' ';
+    } else {
+      row->render[idx++] = row->chars[j];
+    }
   }
 
   row->render[idx] = '\0';
@@ -313,6 +345,11 @@ void editorProcessKeypress() {
 /*** output ***/
 
 void editorScroll() {
+  EConfig.rx = 0;
+  if (EConfig.cy < EConfig.numrows) {
+    EConfig.rx = editorRowCxtoRx(&EConfig.row[EConfig.cy], EConfig.cx);
+  }
+
   if (EConfig.cy < EConfig.rowoffset) {
     EConfig.rowoffset = EConfig.cy;
   }
@@ -321,11 +358,11 @@ void editorScroll() {
     EConfig.rowoffset = EConfig.cy - EConfig.screenrows + 1;
   }
 
-  if (EConfig.cx < EConfig.coloffset) {
-    EConfig.coloffset = EConfig.cx;
+  if (EConfig.rx < EConfig.coloffset) {
+    EConfig.coloffset = EConfig.rx;
   }
-  if (EConfig.cx >= EConfig.coloffset + EConfig.screencols) {
-    EConfig.coloffset = EConfig.cx - EConfig.screencols + 1;
+  if (EConfig.rx >= EConfig.coloffset + EConfig.screencols) {
+    EConfig.coloffset = EConfig.rx - EConfig.screencols + 1;
   }
 }
 
@@ -379,7 +416,7 @@ void editorRefreshScreen() {
   editorDrawRows(&ab);
   char buf[32];
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH",
-           (EConfig.cy - EConfig.rowoffset) + 1, EConfig.cx + 1);
+           (EConfig.cy - EConfig.rowoffset) + 1, EConfig.rx + 1);
   abAppend(&ab, buf, strlen(buf));
   abAppend(&ab, "\x1b[?25h", 6);
   write(STDOUT_FILENO, ab.b, ab.len);
@@ -391,6 +428,7 @@ void editorRefreshScreen() {
 void initEditor() {
   EConfig.cx = 0;
   EConfig.cy = 0;
+  EConfig.rx = 0;
   EConfig.numrows = 0;
   EConfig.row = NULL;
   EConfig.rowoffset = 0;
