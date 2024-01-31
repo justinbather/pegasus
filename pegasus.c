@@ -12,6 +12,9 @@
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define PEGASUS_VERSION "0.0.1"
+#define _DEFAULT_SOURCE
+#define _BSD_SOURCE
+#define _GNU_SOURCE
 
 enum editorKey {
   ARROW_LEFT = 'h',
@@ -177,19 +180,15 @@ void editorAppendRow(char *s, size_t len) {
 
 void editorOpen(char *filename) {
   FILE *fp = fopen(filename, "r");
-  if (!fp) {
+  if (!fp)
     die("fopen");
-  }
-
   char *line = NULL;
   size_t linecap = 0;
   ssize_t linelen;
-  linelen = getline(&line, &linecap, fp);
   while ((linelen = getline(&line, &linecap, fp)) != -1) {
     while (linelen > 0 &&
-           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r')) {
+           (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
       linelen--;
-    }
     editorAppendRow(line, linelen);
   }
   free(line);
@@ -226,8 +225,10 @@ void abFree(struct abuf *ab) { free(ab->b); }
 
 /*** input ***/
 void editorMoveCursor(char key) {
+
+  erow *row = (EConfig.cy >= EConfig.numrows) ? NULL : &EConfig.row[EConfig.cy];
   switch (key) {
-    // NOTE: Maybe change the naming of the enum constants later
+    // NOTEConfig. Maybe change the naming of the enum constants later
   case ARROW_UP:
     if (EConfig.cy != 0) {
       EConfig.cy--;
@@ -248,6 +249,12 @@ void editorMoveCursor(char key) {
       EConfig.cx++;
     }
     break;
+  }
+
+  row = (EConfig.cy >= EConfig.numrows) ? NULL : &EConfig.row[EConfig.cy];
+  int rowlen = row ? row->size : 0;
+  if (EConfig.cx > rowlen) {
+    EConfig.cx = rowlen;
   }
 }
 void editorProcessKeypress() {
@@ -283,27 +290,22 @@ void editorScroll() {
   if (EConfig.cx < EConfig.coloffset) {
     EConfig.coloffset = EConfig.cx;
   }
-  if (EConfig.cx >= EConfig.coloffset) {
+  if (EConfig.cx >= EConfig.coloffset + EConfig.screencols) {
     EConfig.coloffset = EConfig.cx - EConfig.screencols + 1;
   }
 }
 
 void editorDrawRows(struct abuf *ab) {
-  int y;
 
-  // Print tildes on each line
+  int y;
   for (y = 0; y < EConfig.screenrows; y++) {
     int filerow = y + EConfig.rowoffset;
-
     if (filerow >= EConfig.numrows) {
-
       if (EConfig.numrows == 0 && y == EConfig.screenrows / 3) {
         char welcome[80];
         int welcomelen =
-            snprintf(welcome, sizeof(welcome),
-                     "Pegasus Editor -- version %s - by Justin Bather\n",
+            snprintf(welcome, sizeof(welcome), "Pegasus editor -- version %s",
                      PEGASUS_VERSION);
-
         if (welcomelen > EConfig.screencols)
           welcomelen = EConfig.screencols;
         int padding = (EConfig.screencols - welcomelen) / 2;
@@ -311,11 +313,9 @@ void editorDrawRows(struct abuf *ab) {
           abAppend(ab, "~", 1);
           padding--;
         }
-
         while (padding--)
           abAppend(ab, " ", 1);
         abAppend(ab, welcome, welcomelen);
-
       } else {
         abAppend(ab, "~", 1);
       }
@@ -327,10 +327,7 @@ void editorDrawRows(struct abuf *ab) {
         len = EConfig.screencols;
       abAppend(ab, &EConfig.row[filerow].chars[EConfig.coloffset], len);
     }
-
-    // clear row as we write to it
     abAppend(ab, "\x1b[K", 3);
-
     if (y < EConfig.screenrows - 1) {
       abAppend(ab, "\r\n", 2);
     }
@@ -340,41 +337,17 @@ void editorDrawRows(struct abuf *ab) {
 // uses appendBuffer to build the stdout and writing to terminal once instead of
 // calling write() many times, causing flickering
 void editorRefreshScreen() {
+
   editorScroll();
   struct abuf ab = ABUF_INIT;
-  // From unistd.h
-  // Writes 4 bytes to the terminal
-  // byte 1: \x1b (escape character / 27 in decimal)
-  // escape chars always followed by `[`
-  // bytes 2-4: [2J
-  // J command (Erase in display) takes args before itself
-  // in this case we use `2` which tells it to clear entire screen
-  //<esc>[1J clears screen up to cursor
-  //<esc>[0J clears screen after cursor (default argument to J command)
-  // using VT100 escape sequences
-  // NOTE: Could use ncurses library to support max amount of terminals. It uses
-  // teminfo db to choose what escape sequences to use for a users teminal
-
-  // hide cursor before paint
   abAppend(&ab, "\x1b[?25l", 6);
-
-  // moves cursor to the top left
-  // H command is for cursor positioning and takes 2 args -> row num, column num
-  // separated by ; ex \x1b[12;40H defaults to 1;1
-
   abAppend(&ab, "\x1b[H", 3);
-
   editorDrawRows(&ab);
-
-  // move cursor to global cursor position state
   char buf[32];
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH",
            (EConfig.cy - EConfig.rowoffset) + 1, EConfig.cx + 1);
   abAppend(&ab, buf, strlen(buf));
-
-  // Show cursor after paint
   abAppend(&ab, "\x1b[?25h", 6);
-
   write(STDOUT_FILENO, ab.b, ab.len);
   abFree(&ab);
 }
