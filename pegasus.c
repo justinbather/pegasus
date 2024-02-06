@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
+#define ESC_KEY 27
 #define PEGASUS_VERSION "0.0.1"
 #define PEGASUS_TAB_SPACES 8
 #define _DEFAULT_SOURCE
@@ -51,6 +53,7 @@ struct editorConfig {
   time_t statusmsg_time;
   erow *row;
   char *filename;
+  bool normalMode;
   struct termios orig_termios;
 };
 
@@ -316,6 +319,9 @@ void abAppend(struct abuf *ab, const char *s, int len) {
 void abFree(struct abuf *ab) { free(ab->b); }
 
 /*** input ***/
+
+void editorToggleNormalMode() { EConfig.normalMode = !EConfig.normalMode; }
+
 void editorMoveCursor(char key) {
 
   erow *row = (EConfig.cy >= EConfig.numrows) ? NULL : &EConfig.row[EConfig.cy];
@@ -358,22 +364,32 @@ void editorMoveCursor(char key) {
 void editorProcessKeypress() {
   char c = editorReadKey();
 
-  switch (c) {
-  // Quit key
-  case CTRL_KEY('q'):
-    write(STDOUT_FILENO, "\x1b[2J", 4);
-    write(STDOUT_FILENO, "\x1b[H", 3);
-    exit(0);
-    break;
-  case ARROW_LEFT:
-  case ARROW_RIGHT:
-  case ARROW_UP:
-  case ARROW_DOWN:
-    editorMoveCursor(c);
-    break;
-
-  default:
-    editorInsertChar(c);
+  if (EConfig.normalMode == true) {
+    switch (c) {
+    // Quit key
+    case CTRL_KEY('q'):
+      write(STDOUT_FILENO, "\x1b[2J", 4);
+      write(STDOUT_FILENO, "\x1b[H", 3);
+      exit(0);
+      break;
+      // TODO: Add macro def for entering insert mode with 'i' to start
+    case ESC_KEY:
+      editorToggleNormalMode();
+      break;
+    case ARROW_LEFT:
+    case ARROW_RIGHT:
+    case ARROW_UP:
+    case ARROW_DOWN:
+      editorMoveCursor(c);
+      break;
+    }
+  } else if (EConfig.normalMode == false) {
+    switch (c) {
+    case ESC_KEY:
+      editorToggleNormalMode();
+    default:
+      editorInsertChar(c);
+    }
   }
 }
 
@@ -472,8 +488,8 @@ void editorDrawMessageBar(struct abuf *ab) {
   }
 }
 
-// uses appendBuffer to build the stdout and writing to terminal once instead of
-// calling write() many times, causing flickering
+// uses appendBuffer to build the stdout and writing to terminal once instead
+// of calling write() many times, causing flickering
 void editorRefreshScreen() {
 
   editorScroll();
@@ -513,6 +529,9 @@ void initEditor() {
   EConfig.filename = NULL;
   EConfig.statusmsg[0] = '\0';
   EConfig.statusmsg_time = 0;
+
+  EConfig.normalMode = true;
+
   if (getWindowSize(&EConfig.screenrows, &EConfig.screencols) == -1) {
     die("getWindowSize");
   }
