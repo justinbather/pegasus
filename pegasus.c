@@ -1,6 +1,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -26,7 +27,8 @@ enum editorKey {
   ARROW_LEFT = 'h',
   ARROW_RIGHT = 'l',
   ARROW_UP = 'k',
-  ARROW_DOWN = 'j'
+  ARROW_DOWN = 'j',
+  BACKSPACE = 127
 };
 
 /*** data ***/
@@ -272,6 +274,28 @@ void editorInsertChar(int c) {
 
 /*** file i/o ***/
 
+char *editorRowsToString(int *buflen) {
+  int totlen = 0;
+
+  for (int j = 0; j < EConfig.numrows; j++) {
+    totlen += EConfig.row[j].size + 1;
+  }
+
+  *buflen = totlen;
+
+  char *buf = malloc(totlen);
+  char *p = buf;
+
+  for (int k = 0; k < EConfig.numrows; k++) {
+    memcpy(p, EConfig.row[k].chars, EConfig.row[k].size);
+    p += EConfig.row[k].size;
+    *p = '\n';
+    p++;
+  }
+
+  return buf;
+}
+
 void editorOpen(char *filename) {
   free(EConfig.filename);
   EConfig.filename = strdup(filename);
@@ -289,6 +313,20 @@ void editorOpen(char *filename) {
   }
   free(line);
   fclose(fp);
+}
+
+void editorSave() {
+  if (EConfig.filename == NULL)
+    return;
+
+  int len;
+  char *buf = editorRowsToString(&len);
+
+  int fd = open(EConfig.filename, O_RDWR | O_CREAT, 0644);
+  ftruncate(fd, len);
+  write(fd, buf, len);
+  close(fd);
+  free(buf);
 }
 
 /*** append buffer **/
@@ -367,6 +405,16 @@ void editorProcessKeypress() {
 
   if (EConfig.normalMode == true) {
     switch (c) {
+    case '\r':
+      break;
+    case BACKSPACE:
+    case CTRL_KEY('h'):
+      break;
+
+    case CTRL_KEY('s'):
+      editorSave();
+      break;
+
     // Quit key
     case CTRL_KEY('q'):
       write(STDOUT_FILENO, "\x1b[2J", 4);
@@ -386,6 +434,7 @@ void editorProcessKeypress() {
     }
   } else if (EConfig.normalMode == false) {
     switch (c) {
+
     case ESC_KEY:
       editorToggleNormalMode();
     default:
