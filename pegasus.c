@@ -241,6 +241,31 @@ void editorAppendRow(char *s, size_t len) {
   EConfig.numrows++;
 }
 
+void editorRowInsertChar(erow *row, int at, int c) {
+  if (at < 0 || at > row->size)
+    at = row->size;
+
+  // add 2 bytes to size of chars to make room for null byte
+  row->chars = realloc(row->chars, row->size + 2);
+
+  memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+
+  row->size++;
+  row->chars[at] = c;
+  editorUpdateRow(row);
+}
+
+/*** editor operations ***/
+
+void editorInsertChar(int c) {
+  if (EConfig.cy == EConfig.numrows) {
+    editorAppendRow("", 0);
+  }
+
+  editorRowInsertChar(&EConfig.row[EConfig.cy], EConfig.cx, c);
+  EConfig.cx++;
+}
+
 /*** file i/o ***/
 
 void editorOpen(char *filename) {
@@ -346,6 +371,9 @@ void editorProcessKeypress() {
   case ARROW_DOWN:
     editorMoveCursor(c);
     break;
+
+  default:
+    editorInsertChar(c);
   }
 }
 
