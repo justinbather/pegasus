@@ -373,7 +373,7 @@ void editorProcessKeypress() {
       exit(0);
       break;
       // TODO: Add macro def for entering insert mode with 'i' to start
-    case ESC_KEY:
+    case 'i':
       editorToggleNormalMode();
       break;
     case ARROW_LEFT:
