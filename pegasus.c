@@ -412,23 +412,20 @@ void editorDrawRows(struct abuf *ab) {
 
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
-
-  char status[80], rowstatus[80];
-
+  char status[80], rstatus[80];
   int len = snprintf(status, sizeof(status), "%.20s - %d lines",
                      EConfig.filename ? EConfig.filename : "[No Name]",
                      EConfig.numrows);
-
-  int rowlen = snprintf(rowstatus, sizeof(rowstatus), "%d/%d", EConfig.cy + 1,
-                        EConfig.numrows);
+  int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", EConfig.cy + 1,
+                      EConfig.numrows);
   if (len > EConfig.screencols)
     len = EConfig.screencols;
+  abAppend(ab, status, len);
   while (len < EConfig.screencols) {
-    if (EConfig.screencols - len == rowlen) {
-      abAppend(ab, rowstatus, rowlen);
+    if (EConfig.screencols - len == rlen) {
+      abAppend(ab, rstatus, rlen);
       break;
     } else {
-
       abAppend(ab, " ", 1);
       len++;
     }
