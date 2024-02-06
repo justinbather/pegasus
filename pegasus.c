@@ -14,6 +14,7 @@
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
+#define INSERT_KEY 'i'
 #define ESC_KEY 27
 #define PEGASUS_VERSION "0.0.1"
 #define PEGASUS_TAB_SPACES 8
@@ -373,7 +374,7 @@ void editorProcessKeypress() {
       exit(0);
       break;
       // TODO: Add macro def for entering insert mode with 'i' to start
-    case 'i':
+    case INSERT_KEY:
       editorToggleNormalMode();
       break;
     case ARROW_LEFT:
