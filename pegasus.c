@@ -263,6 +263,14 @@ void editorRowInsertChar(erow *row, int at, int c) {
 
 /*** editor operations ***/
 
+void editorSetStatusMessage(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  vsnprintf(EConfig.statusmsg, sizeof(EConfig.statusmsg), fmt, ap);
+  va_end(ap);
+  EConfig.statusmsg_time = time(NULL);
+}
+
 void editorInsertChar(int c) {
   if (EConfig.cy == EConfig.numrows) {
     editorAppendRow("", 0);
@@ -323,10 +331,19 @@ void editorSave() {
   char *buf = editorRowsToString(&len);
 
   int fd = open(EConfig.filename, O_RDWR | O_CREAT, 0644);
-  ftruncate(fd, len);
-  write(fd, buf, len);
-  close(fd);
+  if (fd != -1) {
+    if (ftruncate(fd, len) != -1) {
+      if (write(fd, buf, len) == len) {
+        close(fd);
+        free(buf);
+        editorSetStatusMessage("%d bytes written to disk", len);
+        return;
+      }
+    }
+    close(fd);
+  }
   free(buf);
+  editorSetStatusMessage("Error Writing to Disk! error: %s", strerror(errno));
 }
 
 /*** append buffer **/
@@ -556,14 +573,6 @@ void editorRefreshScreen() {
   abAppend(&ab, "\x1b[?25h", 6);
   write(STDOUT_FILENO, ab.b, ab.len);
   abFree(&ab);
-}
-
-void editorSetStatusMessage(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  vsnprintf(EConfig.statusmsg, sizeof(EConfig.statusmsg), fmt, ap);
-  va_end(ap);
-  EConfig.statusmsg_time = time(NULL);
 }
 
 /*** init ***/
