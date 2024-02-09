@@ -57,6 +57,7 @@ struct editorConfig {
   erow *row;
   char *filename;
   bool normalMode;
+  int dirty;
   struct termios orig_termios;
 };
 
@@ -245,6 +246,23 @@ void editorAppendRow(char *s, size_t len) {
   editorUpdateRow(&EConfig.row[at]);
 
   EConfig.numrows++;
+  EConfig.dirty++;
+}
+
+void editorFreeRow(erow *row) {
+  free(row->render);
+  free(row->chars);
+}
+
+void editorDelRow(int at) {
+  if (at < 0 || at >= EConfig.numrows)
+    return;
+
+  editorFreeRow(&EConfig.row[at]);
+  memmove(&EConfig.row[at], &EConfig.row[at + 1],
+          sizeof(erow) * (EConfig.numrows - at - 1));
+  EConfig.numrows--;
+  EConfig.dirty++;
 }
 
 void editorRowInsertChar(erow *row, int at, int c) {
@@ -259,6 +277,26 @@ void editorRowInsertChar(erow *row, int at, int c) {
   row->size++;
   row->chars[at] = c;
   editorUpdateRow(row);
+  EConfig.dirty++;
+}
+
+void editorRowAppendText(erow *row, char *s, size_t len) {
+  row->chars = realloc(row->chars, row->size + len + 1);
+  memcpy(&row->chars[row->size], s, len);
+  row->size += len;
+  row->chars[row->size] = '\0';
+  editorUpdateRow(row);
+  EConfig.dirty++;
+}
+
+void editorRowDelChar(erow *row, int at) {
+  if (at < 0 || at >= row->size)
+    return;
+
+  memmove(&row->chars[at], &row->chars[at + 1], row->size - at);
+  row->size--;
+  editorUpdateRow(row);
+  EConfig.dirty++;
 }
 
 /*** editor operations ***/
@@ -278,6 +316,24 @@ void editorInsertChar(int c) {
 
   editorRowInsertChar(&EConfig.row[EConfig.cy], EConfig.cx, c);
   EConfig.cx++;
+}
+
+void editorDelChar() {
+  if (EConfig.cy == EConfig.numrows)
+    return;
+  if (EConfig.cx == 0 && EConfig.cy == 0)
+    return;
+
+  erow *row = &EConfig.row[EConfig.cy];
+  if (EConfig.cx > 0) {
+    editorRowDelChar(row, EConfig.cx - 1);
+    EConfig.cx--;
+  } else {
+    EConfig.cx = EConfig.row[EConfig.cy - 1].size;
+    editorRowAppendText(&EConfig.row[EConfig.cy - 1], row->chars, row->size);
+    editorDelRow(EConfig.cy);
+    EConfig.cy--;
+  }
 }
 
 /*** file i/o ***/
@@ -321,6 +377,7 @@ void editorOpen(char *filename) {
   }
   free(line);
   fclose(fp);
+  EConfig.dirty = 0;
 }
 
 void editorSave() {
@@ -337,6 +394,7 @@ void editorSave() {
         close(fd);
         free(buf);
         editorSetStatusMessage("%d bytes written to disk", len);
+        EConfig.dirty = 0;
         return;
       }
     }
@@ -454,6 +512,10 @@ void editorProcessKeypress() {
 
     case ESC_KEY:
       editorToggleNormalMode();
+    case BACKSPACE:
+    case CTRL_KEY('h'):
+      editorDelChar();
+      break;
     default:
       editorInsertChar(c);
     }
@@ -524,9 +586,9 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
   abAppend(ab, "\x1b[7m", 4);
   char status[80], rstatus[80];
-  int len = snprintf(status, sizeof(status), "%.20s - %d lines",
+  int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
                      EConfig.filename ? EConfig.filename : "[No Name]",
-                     EConfig.numrows);
+                     EConfig.numrows, EConfig.dirty ? "(modified)" : "");
   int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d", EConfig.cy + 1,
                       EConfig.numrows);
   if (len > EConfig.screencols)
@@ -588,6 +650,7 @@ void initEditor() {
   EConfig.filename = NULL;
   EConfig.statusmsg[0] = '\0';
   EConfig.statusmsg_time = 0;
+  EConfig.dirty = 0;
 
   EConfig.normalMode = true;
 
