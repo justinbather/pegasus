@@ -13,8 +13,8 @@ make
 Editor Commands:
  - Quit - CTRL+Q (In normal mode)
  - Save - CTRL+S (In normal mode)
-    Upon successful save a message displayed at the bottom of the editor will indicate number of bytes written
-    If the file has been modified since last save, the status bar will indicate [modified]
+   - Upon saving the status bar will indicate number of bytes written to disk
+   - If the file has been modified since last save, the status bar will indicate [modified]
 
 Motions:
 
