@@ -522,6 +522,8 @@ void editorProcessKeypress() {
   }
 }
 
+/*** motions ***/
+
 /*** output ***/
 
 void editorScroll() {
