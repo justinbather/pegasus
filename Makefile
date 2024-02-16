@@ -1,2 +1,11 @@
-pegasus: src/pegasus.c
-	$(CC) src/pegasus.c -o pegasus -I./include -Wall -Wextra -pedantic -std=c99
+CC = gcc
+CFLAGS = -Wall -Wextra -I./include
+DEPS = include/terminal.h include/editordata.h
+OBJ = src/pegasus.o src/terminal.o
+
+
+%.o: %.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+pegasus: $(OBJ)
+	$(CC) -o $@ $^ $(CFLAGS)

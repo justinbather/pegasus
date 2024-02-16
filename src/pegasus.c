@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include "../include/editordata.h"
+#include "../include/terminal.h"
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
@@ -25,14 +26,6 @@
 #define _BSD_SOURCE
 #define _GNU_SOURCE
 
-enum editorKey {
-  ARROW_LEFT = 'h',
-  ARROW_RIGHT = 'l',
-  ARROW_UP = 'k',
-  ARROW_DOWN = 'j',
-  BACKSPACE = 127
-};
-
 /*** data ***/
 // stores chars from row in file
 /*
@@ -43,7 +36,6 @@ typedef struct erow {
   // render stores characters to render into row eg. spaces instead of t (\t)
   char *render;
 } erow;
-*/
 
 struct editorConfig {
   // cursor x and y position indexes into rows and columns
@@ -64,11 +56,10 @@ struct editorConfig {
   int dirty;
   struct termios orig_termios;
 };
-
-struct editorConfig EConfig;
+*/
 
 /*** terminal ***/
-
+/*
 void die(const char *s) {
   // Clear terminal and move cursor to top left upon exit
   write(STDOUT_FILENO, "\1xb[2J", 4);
@@ -186,7 +177,7 @@ int getWindowSize(int *rows, int *cols) {
     return 0;
   }
 }
-
+*/
 /*** row operations ***/
 
 int editorRowCxtoRx(erow *row, int cx) {
@@ -195,8 +186,8 @@ int editorRowCxtoRx(erow *row, int cx) {
   for (int j = 0; j < cx; j++) {
     if (row->chars[j] == '\t') {
       rx += (PEGASUS_TAB_SPACES - 1) - (rx % PEGASUS_TAB_SPACES);
+      rx++;
     }
-    rx++;
   }
   return rx;
 }
@@ -419,10 +410,11 @@ struct abuf {
   { NULL, 0 }
 
 void abAppend(struct abuf *ab, const char *s, int len) {
-  // request a larger block of memory to add a string of size n to our exisiting
-  // struct in memory so we can copy the given string to the end of our current
-  // buffer data if realloc cant add to our exisiting block of memory it will
-  // free our existing block and find a new one of size n + ab->len
+  // request a larger block of memory to add a string of size n to our
+  // exisiting struct in memory so we can copy the given string to the end of
+  // our current buffer data if realloc cant add to our exisiting block of
+  // memory it will free our existing block and find a new one of size n +
+  // ab->len
   char *new = realloc(ab->b, ab->len + len);
 
   if (new == NULL)
@@ -479,6 +471,7 @@ void editorMoveCursor(char key) {
     EConfig.cx = rowlen;
   }
 }
+
 void editorProcessKeypress() {
   char c = editorReadKey();
 
