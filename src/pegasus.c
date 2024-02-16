@@ -13,6 +13,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include "../include/editordata.h"
+
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
 #define INSERT_KEY 'i'
@@ -33,6 +35,7 @@ enum editorKey {
 
 /*** data ***/
 // stores chars from row in file
+/*
 typedef struct erow {
   int size;
   int rsize;
@@ -40,6 +43,7 @@ typedef struct erow {
   // render stores characters to render into row eg. spaces instead of t (\t)
   char *render;
 } erow;
+*/
 
 struct editorConfig {
   // cursor x and y position indexes into rows and columns

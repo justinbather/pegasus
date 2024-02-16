@@ -1,2 +1,2 @@
-pegasus: pegasus.c
-	$(CC) pegasus.c -o pegasus -Wall -Wextra -pedantic -std=c99
+pegasus: src/pegasus.c
+	$(CC) src/pegasus.c -o pegasus -I./include -Wall -Wextra -pedantic -std=c99
