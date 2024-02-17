@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -I./include
+CFLAGS = -Wall -Wextra -I.
 DEPS = include/terminal.h include/editordata.h
 OBJ = src/pegasus.o src/terminal.o
 
