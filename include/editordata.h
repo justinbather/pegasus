@@ -32,7 +32,7 @@ struct editorConfig {
   struct termios orig_termios;
 };
 
-struct editorConfig EConfig;
+extern struct editorConfig EConfig;
 
 enum editorKey {
   ARROW_LEFT = 'h',
