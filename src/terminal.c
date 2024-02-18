@@ -10,6 +10,8 @@
 #include "../include/editordata.h"
 #include "../include/terminal.h"
 
+extern struct editorConfig EConfig;
+
 void die(const char *s) {
   // Clear terminal and move cursor to top left upon exit
   write(STDOUT_FILENO, "\1xb[2J", 4);

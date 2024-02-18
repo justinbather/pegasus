@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -I.
 DEPS = include/terminal.h include/editordata.h
-OBJ = src/pegasus.o src/terminal.o
+OBJ = src/pegasus.o src/terminal.o src/editordata.o
 
 
 %.o: %.c $(DEPS)

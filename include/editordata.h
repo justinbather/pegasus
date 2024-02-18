@@ -1,6 +1,7 @@
 #ifndef EDITORDATA_H
 #define EDITORDATA_H
 
+#include <stdbool.h>
 #include <termios.h>
 #include <time.h>
 
@@ -31,7 +32,7 @@ struct editorConfig {
   struct termios orig_termios;
 };
 
-extern struct editorConfig EConfig;
+struct editorConfig EConfig;
 
 enum editorKey {
   ARROW_LEFT = 'h',
